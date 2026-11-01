@@ -1,0 +1,2231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clock Concept</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Quicksand:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="mons.js"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Quicksand', sans-serif;
+            user-select: none;
+        }
+
+        .clock-font {
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 0.12em;
+        }
+
+        /* Pixel art crisp rendering for retro Pokemon sprite animations */
+        .pixelated {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Gentle breathing/floating animation */
+        @keyframes gentle-float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
+        }
+
+        .mon-float {
+            animation: gentle-float 4s ease-in-out infinite;
+        }
+
+        @keyframes pop-bounce {
+            0% {
+                transform: scale(0.9) translateY(0);
+            }
+
+            35% {
+                transform: scale(1.2) translateY(-14px) rotate(-3deg);
+            }
+
+            70% {
+                transform: scale(0.98) translateY(2px) rotate(2deg);
+            }
+
+            100% {
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .mon-react {
+            animation: pop-bounce 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Floating reaction heart particles */
+        @keyframes float-up-fade {
+            0% {
+                transform: translateY(0) scale(0.6) rotate(0deg);
+                opacity: 1;
+            }
+
+            50% {
+                transform: translateY(-45px) scale(1.2) rotate(var(--rot, 8deg));
+                opacity: 0.95;
+            }
+
+            100% {
+                transform: translateY(-90px) scale(0.9) rotate(var(--rot, -12deg));
+                opacity: 0;
+            }
+        }
+
+        .floating-heart {
+            position: absolute;
+            pointer-events: none;
+            animation: float-up-fade 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            z-index: 40;
+            user-select: none;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        /* Hamburger button animation */
+        .menu-open #hamburger-line-1 {
+            transform: translateY(7px) rotate(45deg);
+        }
+
+        .menu-open #hamburger-line-2 {
+            opacity: 0;
+            transform: scale(0.2);
+        }
+
+        .menu-open #hamburger-line-3 {
+            transform: translateY(-7px) rotate(-45deg);
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(18, 25, 22, 0.94);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+    </style>
+</head>
+
+<body
+    class="relative bg-[#111814] text-white flex flex-col justify-between items-center transition-colors duration-700 min-h-screen"
+    id="app-body">
+
+    <!-- ================= DYNAMIC BACKGROUND LAYER ================= -->
+    <div id="bg-layer" class="fixed inset-0 bg-cover bg-center transition-all duration-700 pointer-events-none z-0"
+        style="background-image: url('typebg/05_Grass.png');"></div>
+    <div id="bg-dim-overlay" class="fixed inset-0 bg-black/10 pointer-events-none z-0"></div>
+
+    <!-- Ambient Particle Canvas (Type-themed particles) -->
+    <canvas id="ambient-particles" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+    <!-- ================= TOP BAR (HAMBURGER MENU & QUICK PLAYER) ================= -->
+    <header class="relative z-30 w-full flex justify-between items-center p-5 sm:p-7 pointer-events-none">
+
+        <!-- Quick Play & Track Name Pill (Left) -->
+        <div
+            class="pointer-events-auto flex items-center space-x-2.5 bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 shadow-lg transition-all duration-300">
+            <!-- Quick Play / Pause Button -->
+            <button id="pill-play-btn"
+                class="w-6 h-6 rounded-full bg-white/20 hover:bg-emerald-400 hover:text-black flex items-center justify-center transition-all text-[11px] font-bold focus:outline-none"
+                title="Play / Pause Music (Space)">
+                ▶
+            </button>
+            <div id="top-info-pill" class="cursor-pointer truncate max-w-[150px] sm:max-w-[220px]"
+                title="Click to open menu (M)">
+                <span id="pill-track-title">Melancholy Lull</span>
+            </div>
+        </div>
+
+        <!-- Hamburger Menu Toggle Button (Top Right) -->
+        <button id="hamburger-btn"
+            class="pointer-events-auto w-12 h-12 rounded-2xl bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white flex flex-col items-center justify-center space-y-1.5 shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
+            title="Open Controls & Settings (M)" aria-label="Open menu">
+            <span id="hamburger-line-1"
+                class="w-5 h-0.5 bg-white rounded-full transition-all duration-300 transform origin-center"></span>
+            <span id="hamburger-line-2" class="w-5 h-0.5 bg-white rounded-full transition-all duration-300"></span>
+            <span id="hamburger-line-3"
+                class="w-5 h-0.5 bg-white rounded-full transition-all duration-300 transform origin-center"></span>
+        </button>
+    </header>
+
+    <!-- ================= CENTER CLOCK & SLEEPING MON DISPLAY ================= -->
+    <main
+        class="relative z-10 flex flex-col items-center justify-center flex-1 w-full px-4 -mt-8 sm:-mt-12 pointer-events-none">
+
+        <!-- Digital Clock (Click to toggle 12h/24h) -->
+        <div id="clock-display"
+            class="clock-font text-6xl sm:text-7xl md:text-8xl text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] leading-none select-none pointer-events-auto cursor-pointer flex items-baseline justify-center transition-transform hover:scale-[1.02]"
+            title="Click to toggle 12h / 24h format (T)">
+            <span id="clock-time-text">04:03:21</span>
+            <span id="clock-ampm-text"
+                class="text-xl sm:text-2xl md:text-3xl ml-3 tracking-normal font-bold hidden opacity-90">AM</span>
+        </div>
+
+        <!-- Date Subtitle -->
+        <div id="date-display"
+            class="text-base sm:text-xl md:text-2xl text-white/90 font-semibold tracking-wider mt-3 mb-6 drop-shadow-[0_1px_6px_rgba(0,0,0,0.3)]">
+            Saturday 17 OCT 2026
+        </div>
+
+        <!-- Center Mon Display (Default always Sleep, click triggers numbered animation with hearts!) -->
+        <div class="relative flex flex-col items-center justify-center pointer-events-auto cursor-pointer select-none"
+            id="mon-stage">
+
+            <!-- Mon Sprite Image (Defaults to Sleep) -->
+            <img id="mon-img" src="mons/05_leafeon/05_leafeon_S.gif" alt="Mon"
+                class="pixelated h-40 sm:h-52 md:h-60 object-contain mon-float select-none transition-transform duration-200" />
+
+            <!-- Ground Shadow -->
+            <div id="mon-shadow"
+                class="w-36 sm:w-44 h-5 bg-black/25 rounded-full blur-[3px] -mt-3 transition-transform duration-300 pointer-events-none">
+            </div>
+
+            <!-- Reaction Particle Container for floating heart emojis -->
+            <div id="reaction-container" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= BOTTOM SYMMETRIC WAVEFORM VISUALIZER ================= -->
+    <footer class="relative z-10 w-full h-36 sm:h-44 flex items-center justify-center pointer-events-none pb-3">
+        <canvas id="visualizer-canvas" class="w-full h-full"></canvas>
+    </footer>
+
+    <!-- ================= HAMBURGER DRAWER MODAL & BACKDROP ================= -->
+    <div id="drawer-backdrop"
+        class="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 hidden transition-opacity duration-300 opacity-0"></div>
+
+    <aside id="drawer-menu"
+        class="fixed top-0 right-0 h-full w-full max-w-sm sm:max-w-md glass-panel text-white z-50 transform translate-x-full transition-transform duration-300 ease-out flex flex-col shadow-2xl">
+
+        <!-- Drawer Header -->
+        <div class="p-5 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div id="active-mon-avatar"
+                    class="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden p-1 shadow-sm">
+                    <img id="avatar-img" src="mons/05_leafeon/05_leafeon_S.gif"
+                        class="pixelated w-full h-full object-contain" alt="Mon" />
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h2 id="active-mon-title" class="text-base font-bold">Leafeon</h2>
+                        <span id="active-type-badge"
+                            class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Grass</span>
+                    </div>
+                    <p class="text-xs text-white/60 truncate max-w-[210px]" id="drawer-status-summary">Music Visualizer
+                        Ready</p>
+                </div>
+            </div>
+            <button id="close-drawer-btn"
+                class="w-9 h-9 rounded-xl hover:bg-white/10 text-white/70 hover:text-white flex items-center justify-center transition-colors text-lg font-bold"
+                aria-label="Close menu">✕</button>
+        </div>
+
+        <!-- Drawer Scrollable Body -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-6">
+
+            <!-- ================= SECTION 1: NOW PLAYING & AUDIO CONTROLS ================= -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3.5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span id="pulse-dot" class="w-2 h-2 rounded-full bg-emerald-400 opacity-40"></span>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-white/60">Audio Player</h3>
+                    </div>
+                    <span id="player-state-pill"
+                        class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/70">Paused</span>
+                </div>
+
+                <!-- Track Name & Wave Animation -->
+                <div class="bg-black/30 rounded-xl p-3 border border-white/5 flex items-center justify-between">
+                    <div class="truncate pr-2">
+                        <div id="now-playing-title" class="text-sm font-bold truncate text-white/95">Melancholy Lull
+                        </div>
+                        <div class="text-[11px] text-white/50 font-mono mt-0.5">music/ folder</div>
+                    </div>
+                    <div class="flex items-end space-x-1 h-5 opacity-40" id="equalizer-bars">
+                        <span class="w-1 bg-emerald-400 rounded-full h-2"></span>
+                        <span class="w-1 bg-emerald-400 rounded-full h-4"></span>
+                        <span class="w-1 bg-emerald-400 rounded-full h-3"></span>
+                    </div>
+                </div>
+
+                <!-- Scrubbable Progress Bar -->
+                <div class="space-y-1">
+                    <div class="relative w-full h-2.5 bg-white/15 hover:bg-white/25 rounded-full cursor-pointer transition-colors p-0.5"
+                        id="progress-bar-container">
+                        <div id="progress-bar-fill"
+                            class="h-full bg-emerald-400 rounded-full transition-all duration-75" style="width: 0%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-mono text-white/50">
+                        <span id="current-time-text">0:00</span>
+                        <span id="duration-time-text">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Audio Playback Buttons (Prev, Play/Pause, Next, Shuffle, Repeat) -->
+                <div class="flex items-center justify-between pt-1">
+                    <button id="shuffle-btn"
+                        class="w-8 h-8 rounded-lg hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-colors text-sm"
+                        title="Shuffle Playlist">
+                        🔀
+                    </button>
+
+                    <div class="flex items-center space-x-2">
+                        <button id="prev-track-btn"
+                            class="w-9 h-9 rounded-xl hover:bg-white/10 text-white flex items-center justify-center transition-colors text-base font-bold"
+                            title="Previous Track (B)">
+                            ⏮
+                        </button>
+                        <button id="main-play-btn"
+                            class="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 text-xl font-bold"
+                            title="Play / Pause (Space)">
+                            ▶
+                        </button>
+                        <button id="next-track-btn"
+                            class="w-9 h-9 rounded-xl hover:bg-white/10 text-white flex items-center justify-center transition-colors text-base font-bold"
+                            title="Next Track (N)">
+                            ⏭
+                        </button>
+                    </div>
+
+                    <button id="repeat-btn"
+                        class="w-8 h-8 rounded-lg hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-colors text-sm"
+                        title="Repeat Mode">
+                        🔁
+                    </button>
+                </div>
+
+                <!-- Volume Slider -->
+                <div class="pt-2 border-t border-white/5 flex items-center space-x-3">
+                    <button id="mute-toggle-btn" class="text-white/60 hover:text-white text-sm"
+                        title="Mute/Unmute">🔊</button>
+                    <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8"
+                        class="flex-1 accent-emerald-400 cursor-pointer h-1.5 bg-white/20 rounded-lg" />
+                    <span id="volume-val-label" class="font-mono text-xs text-white/70 w-9 text-right">80%</span>
+                </div>
+            </div>
+
+            <!-- ================= SECTION 2: CHOOSE MON ================= -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-white/60">Choose Mon</h3>
+                    </div>
+                    <span id="mon-count-badge"
+                        class="text-[11px] font-mono bg-white/10 text-white/70 px-2 py-0.5 rounded-full">29 Mons</span>
+                </div>
+
+                <!-- Mon Cards Grid -->
+                <div id="eeveelution-grid" class="grid grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- ================= SECTION 3: TRACK PLAYLIST & UPLOAD ================= -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-white/60">Playlists</h3>
+                    <div class="flex items-center space-x-2">
+                        <button id="restore-defaults-btn"
+                            class="text-[10px] text-emerald-400/80 hover:text-emerald-300 hover:underline transition-colors hidden"
+                            title="Restore original 10 default songs">
+                            Restore Defaults
+                        </button>
+                        <span id="playlist-count-badge"
+                            class="text-[11px] font-semibold bg-white/10 px-2 py-0.5 rounded-full text-white/70">10
+                            tracks</span>
+                    </div>
+                </div>
+
+                <!-- Upload Own MP3s / Audio Button -->
+                <label for="audio-file-input"
+                    class="block w-full border-2 border-dashed border-white/20 hover:border-emerald-400/80 bg-white/5 hover:bg-white/10 rounded-xl p-2.5 text-center cursor-pointer transition-all">
+                    <div class="flex items-center justify-center space-x-2 text-xs font-bold text-white/90">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span>Upload Your Own Audio</span>
+                    </div>
+                    <span class="text-[10px] text-white/50 block">MP3, WAV, OGG, M4A</span>
+                    <input id="audio-file-input" type="file" accept="audio/*" multiple class="hidden" />
+                </label>
+
+                <!-- Active Playlist Items -->
+                <div id="playlist-container" class="space-y-1 max-h-56 overflow-y-auto pr-1">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- ================= SECTION 4: DISPLAY & PREFERENCES ================= -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3.5 shadow-sm">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-white/60">Display Preferences</h3>
+
+                <!-- 24h Clock Toggle -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-bold">24-Hour Format</div>
+                        <div class="text-xs text-white/60" id="clock-mode-label">24H Active</div>
+                    </div>
+                    <button id="clock-toggle-switch" role="switch" aria-checked="true"
+                        class="w-12 h-6 bg-emerald-500 rounded-full p-0.5 transition-colors duration-300 relative focus:outline-none cursor-pointer flex items-center">
+                        <div id="clock-switch-knob"
+                            class="w-5 h-5 bg-white rounded-full transition-transform duration-300 transform translate-x-6 shadow-md">
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Ambient Particles Toggle -->
+                <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                    <div>
+                        <div class="text-sm font-bold">Ambient Particles</div>
+                        <div class="text-xs text-white/60" id="particles-mode-label">Leaves / Embers / Rain</div>
+                    </div>
+                    <button id="particles-toggle-switch" role="switch" aria-checked="true"
+                        class="w-12 h-6 bg-emerald-500 rounded-full p-0.5 transition-colors duration-300 relative focus:outline-none cursor-pointer flex items-center">
+                        <div id="particles-switch-knob"
+                            class="w-5 h-5 bg-white rounded-full transition-transform duration-300 transform translate-x-6 shadow-md">
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Visualizer Sensitivity -->
+                <div class="pt-2 border-t border-white/5">
+                    <div class="flex justify-between items-center text-xs mb-1">
+                        <span class="text-white/60">Waveform Pulse Scale</span>
+                        <span id="vis-scale-label" class="font-mono text-white/80">0.6x</span>
+                    </div>
+                    <input id="vis-scale-slider" type="range" min="0.2" max="2.0" step="0.1" value="0.6"
+                        class="w-full accent-emerald-400 cursor-pointer h-1.5 bg-white/20 rounded-lg" />
+                </div>
+            </div>
+
+            <!-- Keyboard Shortcuts Info -->
+            <div class="text-[11px] text-white/40 space-y-1 px-1">
+                <div class="font-bold uppercase tracking-wider text-white/50 text-[10px]">Keyboard Shortcuts:</div>
+                <div class="flex justify-between"><span>Play / Pause:</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">Space</kbd></div>
+                <div class="flex justify-between"><span>Next / Prev Song:</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">N / B</kbd></div>
+                <div class="flex justify-between"><span>Poke Mon (Spin / Cry):</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">C / S</kbd></div>
+                <div class="flex justify-between"><span>Toggle 24H:</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">T</kbd></div>
+                <div class="flex justify-between"><span>Toggle Menu:</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">M</kbd></div>
+                <div class="flex justify-between"><span>Quick Select Mon:</span> <kbd
+                        class="bg-white/10 px-1 rounded font-mono">1 - 9</kbd></div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- Standard HTML5 Audio Element (No crossorigin attribute for seamless file:/// & server support) -->
+    <audio id="audio-player" preload="metadata"></audio>
+
+    <script>
+        /********************************************************************
+         * 1. MON CATALOG, DYNAMIC AUTO-DETECTION & ANIMATIONS
+         ********************************************************************/
+        const TYPE_BG_MAP = {
+            '01': { type: 'Normal', bgFile: '01_Normal.png', color: '#aaaa99' },
+            '02': { type: 'Fire', bgFile: '02_Fire.png', color: '#ff4422' },
+            '03': { type: 'Water', bgFile: '03_Water.png', color: '#3399ff' },
+            '04': { type: 'Electric', bgFile: '04_Electric.png', color: '#ffcc33' },
+            '05': { type: 'Grass', bgFile: '05_Grass.png', color: '#77cc55' },
+            '06': { type: 'Ice', bgFile: '06_Ice.png', color: '#66ccff' },
+            '07': { type: 'Fighting', bgFile: '07_Fighting.png', color: '#c03028' },
+            '08': { type: 'Poison', bgFile: '08_Poison.png', color: '#a040a0' },
+            '09': { type: 'Ground', bgFile: '09_Ground.png', color: '#e0c068' },
+            '10': { type: 'Flying', bgFile: '10_Flying.png', color: '#a890f0' },
+            '11': { type: 'Psychic', bgFile: '11_Psychic.png', color: '#ff5599' },
+            '12': { type: 'Bug', bgFile: '12_Bug.png', color: '#a8b820' },
+            '13': { type: 'Rock', bgFile: '13_Rock.png', color: '#b8a038' },
+            '14': { type: 'Ghost', bgFile: '14_Ghost.png', color: '#705898' },
+            '15': { type: 'Dragon', bgFile: '15_Dragon.png', color: '#7038f8' },
+            '16': { type: 'Dark', bgFile: '16_Dark.png', color: '#f4d35e' },
+            '17': { type: 'Steel', bgFile: '17_Steel.png', color: '#b8b8d0' },
+            '18': { type: 'Fairy', bgFile: '18_Fairy.png', color: '#ee99ee' }
+        };
+
+        const DEFAULT_MON_CATALOG = [
+            {
+                "id": "01",
+                "folder": "01_eevee",
+                "name": "Eevee",
+                "type": "Normal",
+                "bgFile": "01_Normal.png",
+                "color": "#aaaa99",
+                "sleepGif": "01_eevee_S.gif",
+                "clickGifs": [
+                    "01_eevee_1.gif",
+                    "01_eevee_2.gif",
+                    "01_eevee_3.gif",
+                    "01_eevee_4.gif",
+                    "01_eevee_5.gif",
+                    "01_eevee_6.gif",
+                    "01_eevee_7.gif"
+                ]
+            },
+            {
+                "id": "01",
+                "folder": "01_furret",
+                "name": "Furret",
+                "type": "Normal",
+                "bgFile": "01_Normal.png",
+                "color": "#aaaa99",
+                "sleepGif": "01_furret_S.gif",
+                "clickGifs": [
+                    "01_furret_1.gif",
+                    "01_furret_2.gif",
+                    "01_furret_3.gif",
+                    "01_furret_4.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_charizard",
+                "name": "Charizard",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_charizard_S.gif",
+                "clickGifs": [
+                    "02_charizard_1.gif",
+                    "02_charizard_2.gif",
+                    "02_charizard_3.gif",
+                    "02_charizard_4.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_charmander",
+                "name": "Charmander",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_charmander_S.gif",
+                "clickGifs": [
+                    "02_charmander_1.gif",
+                    "02_charmander_2.gif",
+                    "02_charmander_3.gif",
+                    "02_charmander_4.gif",
+                    "02_charmander_5.gif",
+                    "02_charmander_6.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_entei",
+                "name": "Entei",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_entei_S.gif",
+                "clickGifs": [
+                    "02_entei_1.gif",
+                    "02_entei_2.gif",
+                    "02_entei_3.gif",
+                    "02_entei_4.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_flareon",
+                "name": "Flareon",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_flareon_S.gif",
+                "clickGifs": [
+                    "02_flareon_1.gif",
+                    "02_flareon_2.gif",
+                    "02_flareon_3.gif",
+                    "02_flareon_4.gif",
+                    "02_flareon_5.gif",
+                    "02_flareon_6.gif",
+                    "02_flareon_7.gif",
+                    "02_flareon_8.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_growlithe",
+                "name": "Growlithe",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_growlithe_S.gif",
+                "clickGifs": [
+                    "02_growlithe_1.gif",
+                    "02_growlithe_2.gif",
+                    "02_growlithe_3.gif"
+                ]
+            },
+            {
+                "id": "02",
+                "folder": "02_vulpix",
+                "name": "Vulpix",
+                "type": "Fire",
+                "bgFile": "02_Fire.png",
+                "color": "#ff4422",
+                "sleepGif": "02_vulpix_S.gif",
+                "clickGifs": [
+                    "02_vulpix_1.gif",
+                    "02_vulpix_2.gif",
+                    "02_vulpix_3.gif",
+                    "02_vulpix_4.gif",
+                    "02_vulpix_5.gif"
+                ]
+            },
+            {
+                "id": "03",
+                "folder": "03_mudkip",
+                "name": "Mudkip",
+                "type": "Water",
+                "bgFile": "03_Water.png",
+                "color": "#3399ff",
+                "sleepGif": "03_mudkip_S.gif",
+                "clickGifs": [
+                    "03_mudkip_1.gif",
+                    "03_mudkip_2.gif",
+                    "03_mudkip_3.gif",
+                    "03_mudkip_4.gif",
+                    "03_mudkip_5.gif",
+                    "03_mudkip_6.gif",
+                    "03_mudkip_7.gif"
+                ]
+            },
+            {
+                "id": "03",
+                "folder": "03_squirtle",
+                "name": "Squirtle",
+                "type": "Water",
+                "bgFile": "03_Water.png",
+                "color": "#3399ff",
+                "sleepGif": "03_squirtle_S.gif",
+                "clickGifs": [
+                    "03_squirtle_1.gif",
+                    "03_squirtle_2.gif",
+                    "03_squirtle_3.gif",
+                    "03_squirtle_4.gif",
+                    "03_squirtle_5.gif",
+                    "03_squirtle_6.gif",
+                    "03_squirtle_7.gif"
+                ]
+            },
+            {
+                "id": "03",
+                "folder": "03_suicune",
+                "name": "Suicune",
+                "type": "Water",
+                "bgFile": "03_Water.png",
+                "color": "#3399ff",
+                "sleepGif": "03_suicune_S.gif",
+                "clickGifs": [
+                    "03_suicune_1.gif",
+                    "03_suicune_2.gif",
+                    "03_suicune_3.gif",
+                    "03_suicune_4.gif"
+                ]
+            },
+            {
+                "id": "03",
+                "folder": "03_vaporeon",
+                "name": "Vaporeon",
+                "type": "Water",
+                "bgFile": "03_Water.png",
+                "color": "#3399ff",
+                "sleepGif": "03_vaporeon_S.gif",
+                "clickGifs": [
+                    "03_vaporeon_1.gif",
+                    "03_vaporeon_2.gif",
+                    "03_vaporeon_3.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_electrike",
+                "name": "Electrike",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_electrike_S.gif",
+                "clickGifs": [
+                    "04_electrike_1.gif",
+                    "04_electrike_2.gif",
+                    "04_electrike_3.gif",
+                    "04_electrike_4.gif",
+                    "04_electrike_5.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_jolteon",
+                "name": "Jolteon",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_jolteon_S.gif",
+                "clickGifs": [
+                    "04_jolteon_1.gif",
+                    "04_jolteon_2.gif",
+                    "04_jolteon_3.gif",
+                    "04_jolteon_4.gif",
+                    "04_jolteon_5.gif",
+                    "04_jolteon_6.gif",
+                    "04_jolteon_7.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_mareep",
+                "name": "Mareep",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_mareep_S.gif",
+                "clickGifs": [
+                    "04_mareep_1.gif",
+                    "04_mareep_2.gif",
+                    "04_mareep_3.gif",
+                    "04_mareep_4.gif",
+                    "04_mareep_5.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_pikachu",
+                "name": "Pikachu",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_pikachu_S.gif",
+                "clickGifs": [
+                    "04_pikachu_1.gif",
+                    "04_pikachu_2.gif",
+                    "04_pikachu_3.gif",
+                    "04_pikachu_4.gif",
+                    "04_pikachu_5.gif",
+                    "04_pikachu_6.gif",
+                    "04_pikachu_7.gif",
+                    "04_pikachu_8.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_raikou",
+                "name": "Raikou",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_raikou_S.gif",
+                "clickGifs": [
+                    "04_raikou_1.gif",
+                    "04_raikou_2.gif",
+                    "04_raikou_3.gif"
+                ]
+            },
+            {
+                "id": "04",
+                "folder": "04_shinx",
+                "name": "Shinx",
+                "type": "Electric",
+                "bgFile": "04_Electric.png",
+                "color": "#ffcc33",
+                "sleepGif": "04_shinx_S.gif",
+                "clickGifs": [
+                    "04_shinx_1.gif",
+                    "04_shinx_2.gif",
+                    "04_shinx_3.gif",
+                    "04_shinx_4.gif",
+                    "04_shinx_5.gif",
+                    "04_shinx_6.gif",
+                    "04_shinx_7.gif"
+                ]
+            },
+            {
+                "id": "05",
+                "folder": "05_bulbasaur",
+                "name": "Bulbasaur",
+                "type": "Grass",
+                "bgFile": "05_Grass.png",
+                "color": "#77cc55",
+                "sleepGif": "05_bulbasaur_S.gif",
+                "clickGifs": [
+                    "05_bulbasaur_1.gif",
+                    "05_bulbasaur_2.gif",
+                    "05_bulbasaur_3.gif",
+                    "05_bulbasaur_4.gif",
+                    "05_bulbasaur_5.gif",
+                    "05_bulbasaur_6.gif",
+                    "05_bulbasaur_7.gif"
+                ]
+            },
+            {
+                "id": "05",
+                "folder": "05_leafeon",
+                "name": "Leafeon",
+                "type": "Grass",
+                "bgFile": "05_Grass.png",
+                "color": "#77cc55",
+                "sleepGif": "05_leafeon_S.gif",
+                "clickGifs": [
+                    "05_leafeon_1.gif",
+                    "05_leafeon_2.gif",
+                    "05_leafeon_3.gif",
+                    "05_leafeon_4.gif",
+                    "05_leafeon_5.gif",
+                    "05_leafeon_6.gif",
+                    "05_leafeon_7.gif"
+                ]
+            },
+            {
+                "id": "06",
+                "folder": "06_glaceon",
+                "name": "Glaceon",
+                "type": "Ice",
+                "bgFile": "06_Ice.png",
+                "color": "#66ccff",
+                "sleepGif": "06_glaceon_S.gif",
+                "clickGifs": [
+                    "06_glaceon_1.gif",
+                    "06_glaceon_2.gif",
+                    "06_glaceon_3.gif",
+                    "06_glaceon_4.gif",
+                    "06_glaceon_5.gif",
+                    "06_glaceon_6.gif",
+                    "06_glaceon_7.gif",
+                    "06_glaceon_8.gif"
+                ]
+            },
+            {
+                "id": "11",
+                "folder": "11_espeon",
+                "name": "Espeon",
+                "type": "Psychic",
+                "bgFile": "11_Psychic.png",
+                "color": "#ff5599",
+                "sleepGif": "11_espeon_S.gif",
+                "clickGifs": [
+                    "11_espeon_1.gif",
+                    "11_espeon_2.gif",
+                    "11_espeon_3.gif",
+                    "11_espeon_4.gif",
+                    "11_espeon_5.gif"
+                ]
+            },
+            {
+                "id": "11",
+                "folder": "11_mew",
+                "name": "Mew",
+                "type": "Psychic",
+                "bgFile": "11_Psychic.png",
+                "color": "#ff5599",
+                "sleepGif": "11_mew_S.gif",
+                "clickGifs": [
+                    "11_mew_1.gif",
+                    "11_mew_2.gif",
+                    "11_mew_3.gif",
+                    "11_mew_4.gif",
+                    "11_mew_5.gif"
+                ]
+            },
+            {
+                "id": "13",
+                "folder": "13_larvitar",
+                "name": "Larvitar",
+                "type": "Rock",
+                "bgFile": "13_Rock.png",
+                "color": "#b8a038",
+                "sleepGif": "13_larvitar_S.gif",
+                "clickGifs": [
+                    "13_larvitar_1.gif",
+                    "13_larvitar_2.gif",
+                    "13_larvitar_3.gif",
+                    "13_larvitar_4.gif",
+                    "13_larvitar_5.gif",
+                    "13_larvitar_6.gif"
+                ]
+            },
+            {
+                "id": "15",
+                "folder": "15_dragonite",
+                "name": "Dragonite",
+                "type": "Dragon",
+                "bgFile": "15_Dragon.png",
+                "color": "#7038f8",
+                "sleepGif": "15_dragonite_S.gif",
+                "clickGifs": [
+                    "15_dragonite_1.gif",
+                    "15_dragonite_2.gif",
+                    "15_dragonite_3.gif",
+                    "15_dragonite_4.gif"
+                ]
+            },
+            {
+                "id": "16",
+                "folder": "16_absol",
+                "name": "Absol",
+                "type": "Dark",
+                "bgFile": "16_Dark.png",
+                "color": "#f4d35e",
+                "sleepGif": "16_absol_S.gif",
+                "clickGifs": [
+                    "16_absol_1.gif",
+                    "16_absol_2.gif",
+                    "16_absol_3.gif",
+                    "16_absol_4.gif",
+                    "16_absol_5.gif",
+                    "16_absol_6.gif",
+                    "16_absol_7.gif"
+                ]
+            },
+            {
+                "id": "16",
+                "folder": "16_umbreon",
+                "name": "Umbreon",
+                "type": "Dark",
+                "bgFile": "16_Dark.png",
+                "color": "#f4d35e",
+                "sleepGif": "16_umbreon_S.gif",
+                "clickGifs": [
+                    "16_umbreon_1.gif",
+                    "16_umbreon_2.gif",
+                    "16_umbreon_3.gif",
+                    "16_umbreon_4.gif",
+                    "16_umbreon_5.gif",
+                    "16_umbreon_6.gif"
+                ]
+            },
+            {
+                "id": "16",
+                "folder": "16_zorua",
+                "name": "Zorua",
+                "type": "Dark",
+                "bgFile": "16_Dark.png",
+                "color": "#f4d35e",
+                "sleepGif": "16_zorua_S.gif",
+                "clickGifs": [
+                    "16_zorua_1.gif",
+                    "16_zorua_2.gif",
+                    "16_zorua_3.gif",
+                    "16_zorua_4.gif",
+                    "16_zorua_5.gif",
+                    "16_zorua_6.gif",
+                    "16_zorua_7.gif"
+                ]
+            },
+            {
+                "id": "18",
+                "folder": "18_sylveon",
+                "name": "Sylveon",
+                "type": "Fairy",
+                "bgFile": "18_Fairy.png",
+                "color": "#ee99ee",
+                "sleepGif": "18_sylveon_S.gif",
+                "clickGifs": [
+                    "18_sylveon_1.gif",
+                    "18_sylveon_2.gif",
+                    "18_sylveon_3.gif",
+                    "18_sylveon_4.gif",
+                    "18_sylveon_5.gif"
+                ]
+            }
+        ];
+
+        let monCatalog = (window.MON_CATALOG && Array.isArray(window.MON_CATALOG) && window.MON_CATALOG.length) ? [...window.MON_CATALOG] : [...DEFAULT_MON_CATALOG];
+
+        // Start with Leafeon (always sleeping by default, wakes only when clicked!)
+        const leafeonDefaultIdx = monCatalog.findIndex(m => m.folder === "05_leafeon");
+        let currentMonIndex = leafeonDefaultIdx >= 0 ? leafeonDefaultIdx : 0;
+        let isReacting = false;
+        let reactionTimeout = null;
+        let currentVisualizerColor = "#5cd65c";
+        let visualizerScale = 0.6;
+
+        const monImg = document.getElementById('mon-img');
+        const bgLayer = document.getElementById('bg-layer');
+
+        function getMonSleepSrc(mon) {
+            if (!mon) return 'mons/05_leafeon/05_leafeon_S.gif';
+            if (mon.sleepBlobUrl) return mon.sleepBlobUrl;
+            return `mons/${mon.folder}/${mon.sleepGif || (mon.folder + '_S.gif')}`;
+        }
+
+        function getRandomClickSrc(mon) {
+            if (!mon) return '';
+            if (mon.clickBlobUrls && mon.clickBlobUrls.length > 0) {
+                const rand = Math.floor(Math.random() * mon.clickBlobUrls.length);
+                return mon.clickBlobUrls[rand];
+            }
+            if (mon.clickGifs && mon.clickGifs.length > 0) {
+                const rand = Math.floor(Math.random() * mon.clickGifs.length);
+                return `mons/${mon.folder}/${mon.clickGifs[rand]}`;
+            }
+            return getMonSleepSrc(mon);
+        }
+
+        function updateMonDisplay() {
+            if (monCatalog.length === 0) return;
+            const mon = monCatalog[currentMonIndex];
+            if (!isReacting) {
+                monImg.src = getMonSleepSrc(mon);
+            }
+
+            // Sync drawer avatar & info
+            document.getElementById('avatar-img').src = getMonSleepSrc(mon);
+            document.getElementById('active-mon-title').textContent = mon.name;
+            const badge = document.getElementById('active-type-badge');
+            badge.textContent = mon.type;
+            badge.style.color = mon.color;
+            badge.style.borderColor = `${mon.color}40`;
+            badge.style.backgroundColor = `${mon.color}20`;
+
+            highlightActiveMonCard();
+        }
+
+        /**
+         * On-click interactive reaction:
+         * Randomly plays one of the Mon's numbered animations, spawns heart emojis ❤️💕💖🥰😍,
+         * then smoothly returns back to sleep!
+         */
+        function triggerMonReaction() {
+            if (monCatalog.length === 0) return;
+            if (reactionTimeout) clearTimeout(reactionTimeout);
+            isReacting = true;
+
+            const mon = monCatalog[currentMonIndex];
+            const clickSrc = getRandomClickSrc(mon);
+            if (clickSrc) {
+                monImg.src = clickSrc;
+            }
+
+            // Bouncy reaction pop
+            monImg.classList.add('mon-react');
+            setTimeout(() => monImg.classList.remove('mon-react'), 650);
+
+            // Spawn exclusively variations of heart emojis ❤️💕💖🥰😍
+            spawnHeartParticles();
+
+            // Return to sleep after ~1.75 seconds
+            reactionTimeout = setTimeout(() => {
+                isReacting = false;
+                monImg.src = getMonSleepSrc(mon);
+            }, 1750);
+        }
+
+        /**
+         * Spawns floating variations of the heart emoji: ❤️💕💖🥰😍
+         */
+        function spawnHeartParticles() {
+            const container = document.getElementById('reaction-container');
+            const HEART_EMOJIS = ['❤️', '💕', '💖', '🥰', '😍'];
+
+            for (let i = 0; i < 6; i++) {
+                const el = document.createElement('div');
+                el.className = 'floating-heart';
+                el.textContent = HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)];
+
+                const offsetX = (Math.random() - 0.5) * 110;
+                const offsetY = (Math.random() - 0.5) * 35;
+                const size = 22 + Math.random() * 12;
+                const rot = (Math.random() - 0.5) * 30;
+
+                el.style.left = `calc(50% + ${offsetX}px)`;
+                el.style.top = `calc(50% + ${offsetY}px)`;
+                el.style.fontSize = `${size}px`;
+                el.style.setProperty('--rot', `${rot}deg`);
+                el.style.animationDelay = `${i * 0.08}s`;
+
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 1600);
+            }
+        }
+
+        function selectMonByIndex(index) {
+            if (monCatalog.length === 0) return;
+            currentMonIndex = (index + monCatalog.length) % monCatalog.length;
+            const mon = monCatalog[currentMonIndex];
+
+            // Resolve background strictly from the starting 2-digit number
+            const prefix = String(mon.id || mon.folder || '').slice(0, 2);
+            const typeInfo = TYPE_BG_MAP[prefix];
+            const bgFilename = mon.bgFile || (typeInfo ? typeInfo.bgFile : `${prefix}_Normal.png`);
+            const defaultColor = mon.color || (typeInfo ? typeInfo.color : '#5cd65c');
+
+            setBackground(bgFilename, defaultColor);
+            updateMonDisplay();
+        }
+
+        function setBackground(bgFilename, defaultColor) {
+            const path = `typebg/${bgFilename}`;
+            const probe = new Image();
+            probe.onload = () => {
+                bgLayer.style.backgroundImage = `url('${path}')`;
+                sampleBackgroundVisualizerColor(probe, defaultColor);
+            };
+            probe.onerror = () => {
+                // If named differently, try matching prefix directly (e.g. 01.jpg, 01.png)
+                const num = bgFilename.slice(0, 2);
+                const altJpg = `typebg/${num}.jpg`;
+                const altProbe = new Image();
+                altProbe.onload = () => {
+                    bgLayer.style.backgroundImage = `url('${altJpg}')`;
+                    sampleBackgroundVisualizerColor(altProbe, defaultColor);
+                };
+                altProbe.onerror = () => {
+                    bgLayer.style.backgroundImage = `url('${path}')`;
+                    if (defaultColor) currentVisualizerColor = defaultColor;
+                };
+                altProbe.src = altJpg;
+            };
+            probe.src = path;
+        }
+
+        function sampleBackgroundVisualizerColor(imgElement, fallbackHex) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 40;
+                canvas.height = 40;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgElement, 0, 0, 40, 40);
+                const data = ctx.getImageData(0, 0, 40, 40).data;
+
+                let maxSat = -1;
+                let vibrantRgb = null;
+                let sumR = 0, sumG = 0, sumB = 0, count = 0;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+                    if (a < 128) continue;
+                    sumR += r; sumG += g; sumB += b; count++;
+
+                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                    const l = (max + min) / 510;
+                    const d = (max - min) / 255;
+                    const s = max === min ? 0 : (l > 0.5 ? d / (2 - 2 * l) : d / (2 * l));
+
+                    if (s > maxSat && l > 0.25 && l < 0.85) {
+                        maxSat = s;
+                        vibrantRgb = [r, g, b];
+                    }
+                }
+
+                if (vibrantRgb && maxSat > 0.15) {
+                    currentVisualizerColor = `rgb(${vibrantRgb[0]}, ${vibrantRgb[1]}, ${vibrantRgb[2]})`;
+                } else if (fallbackHex) {
+                    currentVisualizerColor = fallbackHex;
+                } else if (count > 0) {
+                    currentVisualizerColor = `rgb(${Math.round(sumR / count)}, ${Math.round(sumG / count)}, ${Math.round(sumB / count)})`;
+                }
+            } catch (e) {
+                currentVisualizerColor = fallbackHex || "#5cd65c";
+            }
+        }
+
+        function renderEeveelutionCards() {
+            const grid = document.getElementById('eeveelution-grid');
+            const badge = document.getElementById('mon-count-badge');
+            if (badge) {
+                badge.textContent = `${monCatalog.length} Mon${monCatalog.length === 1 ? '' : 's'}`;
+            }
+            grid.innerHTML = '';
+
+            monCatalog.forEach((mon, idx) => {
+                const card = document.createElement('button');
+                card.dataset.index = idx;
+                card.className = `mon-select-card p-2 rounded-xl border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 flex flex-col items-center justify-between text-center transition-all cursor-pointer group`;
+                const sleepSrc = getMonSleepSrc(mon);
+                const clickCount = (mon.clickGifs ? mon.clickGifs.length : 0) || (mon.clickBlobUrls ? mon.clickBlobUrls.length : 0);
+                card.innerHTML = `
+                    <div class="w-10 h-10 flex items-center justify-center overflow-hidden mb-1">
+                        <img src="${sleepSrc}" class="pixelated max-h-full max-w-full group-hover:scale-115 transition-transform" alt="${mon.name}"/>
+                    </div>
+                    <span class="text-xs font-bold text-white/95 leading-tight truncate w-full">${mon.name}</span>
+                    <div class="flex items-center space-x-1 mt-0.5">
+                        <span class="text-[9px] uppercase font-semibold px-1.5 py-0.2 rounded-full" style="background:${mon.color}25; color:${mon.color}">${mon.type}</span>
+                        <span class="text-[8px] font-mono text-white/40">${clickCount} anims</span>
+                    </div>
+                `;
+                card.addEventListener('click', () => selectMonByIndex(idx));
+                grid.appendChild(card);
+            });
+
+            highlightActiveMonCard();
+        }
+
+        function highlightActiveMonCard() {
+            document.querySelectorAll('.mon-select-card').forEach((card, idx) => {
+                if (idx === currentMonIndex) {
+                    card.classList.add('border-emerald-400', 'bg-white/20', 'shadow-md');
+                } else {
+                    card.classList.remove('border-emerald-400', 'bg-white/20', 'shadow-md');
+                }
+            });
+        }
+
+        function mergeNewMons(newMonsList) {
+            let changed = false;
+            for (const newMon of newMonsList) {
+                const idx = monCatalog.findIndex(m => m.folder === newMon.folder);
+                if (idx >= 0) {
+                    monCatalog[idx] = { ...monCatalog[idx], ...newMon };
+                    changed = true;
+                } else {
+                    monCatalog.push(newMon);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                monCatalog.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+                renderEeveelutionCards();
+            }
+        }
+
+        /********************************************************************
+         * DYNAMIC AUTO-DETECTION & FOLDER DISCOVERY MECHANISMS
+         ********************************************************************/
+        // 1. Fetch mons.json if served over HTTP/HTTPS/GitHub Pages
+        async function loadMonsJson() {
+            try {
+                const res = await fetch(`mons.json?t=${Date.now()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        mergeNewMons(data);
+                        renderEeveelutionCards();
+                        updateMonDisplay();
+                    }
+                }
+            } catch (e) {
+                // file:/// or CORS - built-in catalog works seamlessly
+            }
+        }
+
+        // 2. Local dev server directory listing auto-detection (e.g. python -m http.server)
+        async function autoDetectLocalServerDirs() {
+            try {
+                const res = await fetch('mons/');
+                if (!res.ok) return;
+                const html = await res.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a'));
+                const folderNames = links
+                    .map(a => a.getAttribute('href') || '')
+                    .map(href => href.replace(/^\/|[\/\\]$/g, '').split('/').pop())
+                    .filter(name => /^\d{2}_/.test(name));
+
+                const uniqueFolders = [...new Set(folderNames)];
+                for (const folder of uniqueFolders) {
+                    if (!monCatalog.some(m => m.folder === folder)) {
+                        probeAndAddMonFolder(folder);
+                    }
+                }
+            } catch (e) {
+                // Ignore if server does not provide directory listings
+            }
+        }
+
+        // 3. GitHub Pages REST API detection (if hosted on GitHub Pages)
+        async function autoDetectGitHubPagesMons() {
+            if (!window.location.hostname.includes('github.io')) return;
+            try {
+                const pathParts = window.location.pathname.split('/').filter(Boolean);
+                const repoName = pathParts[0] || 'avpxxd.github.io_clock';
+                const owner = window.location.hostname.split('.')[0] || 'avpxxd';
+                const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/mons`;
+
+                const res = await fetch(apiUrl);
+                if (!res.ok) return;
+                const items = await res.json();
+                if (!Array.isArray(items)) return;
+
+                for (const item of items) {
+                    if (item.type === 'dir' && /^\d{2}_/.test(item.name)) {
+                        if (!monCatalog.some(m => m.folder === item.name)) {
+                            const folderRes = await fetch(item.url);
+                            if (folderRes.ok) {
+                                const files = await folderRes.json();
+                                parseAndAddGitHubMon(item.name, files);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // Offline or rate-limited
+            }
+        }
+
+        function parseAndAddGitHubMon(folderName, files) {
+            const prefix = folderName.slice(0, 2);
+            const typeInfo = TYPE_BG_MAP[prefix] || { type: 'Custom', bgFile: `${prefix}_Normal.png`, color: '#5cd65c' };
+            const rawName = folderName.slice(3).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+            const sleepFile = files.find(f => /_[sS]\.gif$/i.test(f.name));
+            const numFiles = files
+                .filter(f => /_\d+\.gif$/i.test(f.name))
+                .sort((a, b) => {
+                    const na = parseInt(a.name.match(/_(\d+)\.gif/i)[1]);
+                    const nb = parseInt(b.name.match(/_(\d+)\.gif/i)[1]);
+                    return na - nb;
+                });
+
+            const newMon = {
+                id: prefix,
+                folder: folderName,
+                name: rawName || folderName,
+                type: typeInfo.type,
+                bgFile: typeInfo.bgFile,
+                color: typeInfo.color,
+                sleepGif: sleepFile ? sleepFile.name : `${folderName}_S.gif`,
+                clickGifs: numFiles.map(f => f.name)
+            };
+            mergeNewMons([newMon]);
+        }
+
+        // 4. Probing helper: scans candidate folder for _S.gif and counts _1.gif, _2.gif...
+        function probeAndAddMonFolder(folderName) {
+            const prefix = folderName.slice(0, 2);
+            const typeInfo = TYPE_BG_MAP[prefix] || { type: 'Custom', bgFile: `${prefix}_Normal.png`, color: '#5cd65c' };
+            const rawName = folderName.slice(3).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+            const sleepPath = `mons/${folderName}/${folderName}_S.gif`;
+            const probe = new Image();
+            probe.onload = () => {
+                const clickGifs = [];
+                let num = 1;
+                function probeNext() {
+                    const nextPath = `mons/${folderName}/${folderName}_${num}.gif`;
+                    const numImg = new Image();
+                    numImg.onload = () => {
+                        clickGifs.push(`${folderName}_${num}.gif`);
+                        num++;
+                        probeNext();
+                    };
+                    numImg.onerror = () => {
+                        const newMon = {
+                            id: prefix,
+                            folder: folderName,
+                            name: rawName || folderName,
+                            type: typeInfo.type,
+                            bgFile: typeInfo.bgFile,
+                            color: typeInfo.color,
+                            sleepGif: `${folderName}_S.gif`,
+                            clickGifs: clickGifs.length > 0 ? clickGifs : [`${folderName}_1.gif`]
+                        };
+                        mergeNewMons([newMon]);
+                    };
+                    numImg.src = nextPath;
+                }
+                probeNext();
+            };
+            probe.src = sleepPath;
+        }
+
+        // 5. Direct folder picker & drag-and-drop parser
+        function handleMonFolderFiles(fileList) {
+            const files = Array.from(fileList);
+            if (files.length === 0) return;
+
+            const folderGroups = {};
+            for (const file of files) {
+                const path = file.webkitRelativePath || file.name;
+                const parts = path.split('/');
+                let folder = parts.length > 1 ? parts[0] : '';
+                if (!folder) {
+                    const m = file.name.match(/^(\d{2}_[^\.]+)/);
+                    folder = m ? m[1] : 'custom_mon';
+                }
+                if (!folderGroups[folder]) folderGroups[folder] = [];
+                folderGroups[folder].push(file);
+            }
+
+            for (const [folder, groupFiles] of Object.entries(folderGroups)) {
+                const prefixMatch = folder.match(/^(\d{2})/);
+                const prefix = prefixMatch ? prefixMatch[1] : '01';
+                const rawNameMatch = folder.match(/^\d{2}_(.*)$/);
+                const name = rawNameMatch ? rawNameMatch[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : folder;
+                const typeInfo = TYPE_BG_MAP[prefix] || { type: 'Custom', bgFile: `${prefix}_Normal.png`, color: '#5cd65c' };
+
+                const sleepFile = groupFiles.find(f => /_[sS]\.gif$/i.test(f.name)) || groupFiles[0];
+                const sleepBlobUrl = sleepFile ? URL.createObjectURL(sleepFile) : '';
+
+                const numFiles = groupFiles
+                    .filter(f => /_\d+\.gif$/i.test(f.name))
+                    .sort((a, b) => {
+                        const na = parseInt(a.name.match(/_(\d+)\.gif/i)[1]);
+                        const nb = parseInt(b.name.match(/_(\d+)\.gif/i)[1]);
+                        return na - nb;
+                    });
+
+                const clickBlobUrls = numFiles.map(f => URL.createObjectURL(f));
+                const clickGifs = numFiles.map(f => f.name);
+
+                const newMon = {
+                    id: prefix,
+                    folder: folder,
+                    name: name,
+                    type: typeInfo.type,
+                    bgFile: typeInfo.bgFile,
+                    color: typeInfo.color,
+                    sleepGif: sleepFile ? sleepFile.name : `${folder}_S.gif`,
+                    sleepBlobUrl: sleepBlobUrl,
+                    clickGifs: clickGifs,
+                    clickBlobUrls: clickBlobUrls,
+                    isCustom: true
+                };
+
+                const existingIdx = monCatalog.findIndex(m => m.folder === folder);
+                if (existingIdx >= 0) {
+                    monCatalog[existingIdx] = newMon;
+                    selectMonByIndex(existingIdx);
+                } else {
+                    monCatalog.push(newMon);
+                    selectMonByIndex(monCatalog.length - 1);
+                }
+            }
+
+            renderEeveelutionCards();
+            updateMonDisplay();
+        }
+
+
+        /********************************************************************
+         * 2. BULLETPROOF AUDIO ENGINE (SUPPORTS FILE:/// & HTTP/S)
+         ********************************************************************/
+        const DEFAULT_PLAYLIST = [
+            { title: "Melancholy Lull", filename: "Melancholy Lull.mp3", duration: "2:43" },
+            { title: "Floating Garden", filename: "Floating Garden.mp3", duration: "3:39" },
+            { title: "Hearty", filename: "Hearty.mp3", duration: "3:05" },
+            { title: "Long Day", filename: "Long Day.mp3", duration: "3:29" },
+            { title: "Moonlight Coffee", filename: "Moonlight Coffee.mp3", duration: "4:21" },
+            { title: "Nighttime Drive", filename: "Nighttime Drive.mp3", duration: "4:09" },
+            { title: "Rainy Day", filename: "Rainy Day.mp3", duration: "4:22" },
+            { title: "River In The Ice", filename: "River In The Ice.mp3", duration: "3:46" },
+            { title: "Sway", filename: "Sway.mp3", duration: "3:34" },
+            { title: "Yesterday", filename: "Yesterday.mp3", duration: "2:48" }
+        ];
+
+        let playlist = [...DEFAULT_PLAYLIST];
+
+        let currentTrackIndex = 0;
+        let isMusicPlaying = false;
+        let isShuffle = false;
+        let repeatMode = "all"; // "all" | "one" | "off"
+        let masterVolume = 0.8;
+
+        const isLocalFile = window.location.protocol === 'file:';
+        let audioCtx = null;
+        let analyser = null;
+        let mediaSourceNode = null;
+        let masterGainNode = null;
+        let frequencyData = new Uint8Array(128);
+
+        const audioPlayer = document.getElementById('audio-player');
+        audioPlayer.volume = masterVolume;
+
+        function getTrackUrl(track) {
+            if (track.src) return track.src; // uploaded blob URL
+            return `music/${encodeURIComponent(track.filename)}`;
+        }
+
+        /**
+         * WebAudio setup:
+         * Only attaches MediaElementSource when not on file:/// to prevent
+         * Chromium from muting local file audio due to CORS restrictions.
+         */
+        function ensureAudioContext() {
+            if (isLocalFile) {
+                // On file:// protocol, native audio element plays directly to speakers cleanly!
+                return;
+            }
+            try {
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) {
+                        audioCtx = new AudioContextClass();
+                        analyser = audioCtx.createAnalyser();
+                        analyser.fftSize = 256;
+                        analyser.smoothingTimeConstant = 0.82;
+                        frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+                        masterGainNode = audioCtx.createGain();
+                        masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+
+                        mediaSourceNode = audioCtx.createMediaElementSource(audioPlayer);
+                        mediaSourceNode.connect(analyser);
+                        analyser.connect(masterGainNode);
+                        masterGainNode.connect(audioCtx.destination);
+                    }
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.warn("WebAudio connection notice (using direct speaker output):", e);
+                mediaSourceNode = null;
+                analyser = null;
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function loadAndPlayTrack(index, autoPlay = true) {
+            if (playlist.length === 0) {
+                audioPlayer.pause();
+                audioPlayer.src = "";
+                setPlayingState(false);
+                document.getElementById('now-playing-title').textContent = "No tracks in playlist";
+                document.getElementById('pill-track-title').textContent = "No track";
+                document.getElementById('drawer-status-summary').textContent = "Playlist is empty";
+                renderPlaylist();
+                return;
+            }
+
+            currentTrackIndex = (index + playlist.length) % playlist.length;
+            const track = playlist[currentTrackIndex];
+            if (!track) return;
+
+            document.getElementById('now-playing-title').textContent = track.title;
+            document.getElementById('pill-track-title').textContent = track.title;
+            document.getElementById('drawer-status-summary').textContent = `Playing: ${track.title}`;
+            renderPlaylist();
+
+            const url = getTrackUrl(track);
+            audioPlayer.src = url;
+
+            if (autoPlay || isMusicPlaying) {
+                ensureAudioContext();
+                const playPromise = audioPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        setPlayingState(true);
+                    }).catch(err => {
+                        console.warn("Audio play prevented or deferred:", err);
+                        setPlayingState(false);
+                    });
+                }
+            } else {
+                setPlayingState(false);
+            }
+        }
+
+        function setPlayingState(playing) {
+            isMusicPlaying = playing;
+            const mainPlayBtn = document.getElementById('main-play-btn');
+            const pillPlayBtn = document.getElementById('pill-play-btn');
+            const statePill = document.getElementById('player-state-pill');
+            const eqBars = document.getElementById('equalizer-bars');
+            const pulseDot = document.getElementById('pulse-dot');
+
+            if (isMusicPlaying) {
+                mainPlayBtn.innerHTML = '❚❚';
+                pillPlayBtn.innerHTML = '❚❚';
+                pillPlayBtn.classList.add('bg-emerald-400', 'text-black');
+                pillPlayBtn.classList.remove('bg-white/20');
+                statePill.textContent = "Playing";
+                statePill.classList.replace('bg-white/10', 'bg-emerald-500/20');
+                statePill.classList.add('text-emerald-300');
+                eqBars.classList.remove('opacity-40');
+                pulseDot.classList.remove('opacity-40');
+                pulseDot.classList.add('animate-pulse');
+            } else {
+                mainPlayBtn.innerHTML = '▶';
+                pillPlayBtn.innerHTML = '▶';
+                pillPlayBtn.classList.remove('bg-emerald-400', 'text-black');
+                pillPlayBtn.classList.add('bg-white/20');
+                statePill.textContent = "Paused";
+                statePill.classList.replace('bg-emerald-500/20', 'bg-white/10');
+                statePill.classList.remove('text-emerald-300');
+                eqBars.classList.add('opacity-40');
+                pulseDot.classList.add('opacity-40');
+                pulseDot.classList.remove('animate-pulse');
+            }
+        }
+
+        function togglePlayPause() {
+            if (playlist.length === 0) return;
+            ensureAudioContext();
+            if (isMusicPlaying) {
+                audioPlayer.pause();
+                setPlayingState(false);
+            } else {
+                if (!audioPlayer.src || audioPlayer.src === "") {
+                    loadAndPlayTrack(currentTrackIndex, true);
+                } else {
+                    const playPromise = audioPlayer.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            setPlayingState(true);
+                        }).catch(err => {
+                            console.warn("Playback error, reloading track:", err);
+                            loadAndPlayTrack(currentTrackIndex, true);
+                        });
+                    }
+                }
+            }
+        }
+
+        // Direct audio player event listeners for 100% sync
+        audioPlayer.addEventListener('play', () => setPlayingState(true));
+        audioPlayer.addEventListener('pause', () => setPlayingState(false));
+
+        function nextTrack() {
+            if (playlist.length === 0) return;
+            if (isShuffle) {
+                const rand = Math.floor(Math.random() * playlist.length);
+                loadAndPlayTrack(rand, true);
+            } else {
+                loadAndPlayTrack(currentTrackIndex + 1, true);
+            }
+        }
+
+        function prevTrack() {
+            if (playlist.length === 0) return;
+            if (audioPlayer.currentTime > 3) {
+                audioPlayer.currentTime = 0;
+            } else {
+                loadAndPlayTrack(currentTrackIndex - 1, true);
+            }
+        }
+
+        function removeTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+
+            const wasPlaying = isMusicPlaying;
+            const isRemovingActive = (index === currentTrackIndex);
+
+            // Remove from array
+            playlist.splice(index, 1);
+
+            if (playlist.length === 0) {
+                audioPlayer.pause();
+                audioPlayer.src = "";
+                setPlayingState(false);
+                currentTrackIndex = 0;
+                document.getElementById('now-playing-title').textContent = "No tracks in playlist";
+                document.getElementById('pill-track-title').textContent = "No track";
+                document.getElementById('drawer-status-summary').textContent = "Playlist is empty";
+                document.getElementById('progress-bar-fill').style.width = "0%";
+                document.getElementById('current-time-text').textContent = "0:00";
+                document.getElementById('duration-time-text').textContent = "0:00";
+            } else if (isRemovingActive) {
+                currentTrackIndex = index % playlist.length;
+                loadAndPlayTrack(currentTrackIndex, wasPlaying);
+            } else if (index < currentTrackIndex) {
+                currentTrackIndex--;
+            }
+
+            renderPlaylist();
+        }
+
+        function restoreDefaultPlaylist() {
+            playlist = [...DEFAULT_PLAYLIST];
+            currentTrackIndex = 0;
+            renderPlaylist();
+            loadAndPlayTrack(0, false);
+        }
+
+        audioPlayer.addEventListener('timeupdate', () => {
+            const current = audioPlayer.currentTime;
+            const duration = audioPlayer.duration || 0;
+            const pct = duration > 0 ? (current / duration) * 100 : 0;
+
+            document.getElementById('progress-bar-fill').style.width = `${pct}%`;
+            document.getElementById('current-time-text').textContent = formatTime(current);
+            document.getElementById('duration-time-text').textContent = formatTime(duration);
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            if (repeatMode === "one") {
+                audioPlayer.currentTime = 0;
+                audioPlayer.play();
+            } else {
+                nextTrack();
+            }
+        });
+
+        // Scrubbing on Progress Bar
+        const progressContainer = document.getElementById('progress-bar-container');
+        progressContainer.addEventListener('click', (e) => {
+            if (!audioPlayer.duration) return;
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            audioPlayer.currentTime = pos * audioPlayer.duration;
+        });
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlist-container');
+            const badge = document.getElementById('playlist-count-badge');
+            const restoreBtn = document.getElementById('restore-defaults-btn');
+
+            badge.textContent = `${playlist.length} track${playlist.length === 1 ? '' : 's'}`;
+            if (restoreBtn) {
+                restoreBtn.classList.toggle('hidden', playlist.length === DEFAULT_PLAYLIST.length);
+            }
+
+            container.innerHTML = '';
+
+            if (playlist.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 px-3 bg-black/20 rounded-xl border border-white/5 space-y-2">
+                        <p class="text-xs text-white/60 font-semibold">Playlist is empty</p>
+                        <button id="empty-restore-btn" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all">
+                            Restore Default Songs
+                        </button>
+                    </div>
+                `;
+                const emptyRestoreBtn = document.getElementById('empty-restore-btn');
+                if (emptyRestoreBtn) {
+                    emptyRestoreBtn.addEventListener('click', restoreDefaultPlaylist);
+                }
+                return;
+            }
+
+            playlist.forEach((track, i) => {
+                const active = i === currentTrackIndex;
+                const row = document.createElement('div');
+                row.className = `w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold transition-all cursor-pointer group/item ${active ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm' : 'bg-white/5 hover:bg-white/10 text-white/90 border border-transparent'
+                    }`;
+
+                const icon = active && isMusicPlaying ? '❚❚' : '▶';
+
+                row.innerHTML = `
+                    <div class="flex items-center space-x-2.5 truncate pr-2 flex-1">
+                        <span class="w-4 text-center font-bold text-xs opacity-75">${icon}</span>
+                        <span class="truncate">${track.title}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-mono text-white/50">${track.duration || ''}</span>
+                        <button class="remove-track-btn w-5 h-5 rounded-md hover:bg-red-500/20 text-white/30 hover:text-red-400 opacity-60 group-hover/item:opacity-100 flex items-center justify-center transition-all text-xs font-bold" title="Remove song from playlist">
+                            ✕
+                        </button>
+                    </div>
+                `;
+
+                row.addEventListener('click', (e) => {
+                    if (e.target.closest('.remove-track-btn')) return;
+                    if (active) {
+                        togglePlayPause();
+                    } else {
+                        loadAndPlayTrack(i, true);
+                    }
+                });
+
+                const removeBtn = row.querySelector('.remove-track-btn');
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeTrack(i);
+                });
+
+                container.appendChild(row);
+            });
+        }
+
+        /********************************************************************
+         * 3. CLOCK & DATE ENGINE
+         ********************************************************************/
+        let is24Hour = true;
+
+        function updateClock() {
+            const now = new Date();
+            let rawHours = now.getHours();
+            const ampm = rawHours >= 12 ? 'PM' : 'AM';
+
+            if (!is24Hour) {
+                rawHours = rawHours % 12;
+                if (rawHours === 0) rawHours = 12;
+            }
+
+            const hours = String(rawHours).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const secs = String(now.getSeconds()).padStart(2, '0');
+
+            document.getElementById('clock-time-text').textContent = `${hours}:${mins}:${secs}`;
+
+            const ampmEl = document.getElementById('clock-ampm-text');
+            if (is24Hour) {
+                ampmEl.classList.add('hidden');
+            } else {
+                ampmEl.textContent = ampm;
+                ampmEl.classList.remove('hidden');
+            }
+
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const dayName = days[now.getDay()];
+            const dayNum = String(now.getDate()).padStart(2, '0');
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+
+            document.getElementById('date-display').textContent = `${dayName} ${dayNum} ${monthName} ${year}`;
+        }
+
+        function toggleClockMode(forceState) {
+            is24Hour = typeof forceState === 'boolean' ? forceState : !is24Hour;
+            const btn = document.getElementById('clock-toggle-switch');
+            const knob = document.getElementById('clock-switch-knob');
+            const label = document.getElementById('clock-mode-label');
+
+            btn.setAttribute('aria-checked', String(is24Hour));
+            if (is24Hour) {
+                btn.classList.replace('bg-white/20', 'bg-emerald-500');
+                knob.classList.add('translate-x-6');
+                label.textContent = "24H Active";
+            } else {
+                btn.classList.replace('bg-emerald-500', 'bg-white/20');
+                knob.classList.remove('translate-x-6');
+                label.textContent = "12H AM/PM Active";
+            }
+            updateClock();
+        }
+
+        /********************************************************************
+         * 4. WAVEFORM VISUALIZER CANVAS (DUAL CENTER PEAKS MATCHING SCREENSHOT)
+         ********************************************************************/
+        const canvas = document.getElementById('visualizer-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function getReferenceProfile(normX) {
+            // Symmetrical dual center peaks + outer shoulders from reference image
+            const baseline = 0.22;
+            const p1 = Math.exp(-Math.pow((normX - 0.12) / 0.05, 2)) * 0.55;
+            const p2 = Math.exp(-Math.pow((normX - 0.28) / 0.04, 2)) * 0.45;
+            const p3 = Math.exp(-Math.pow((normX - 0.445) / 0.038, 2)) * 0.95;
+            const p4 = Math.exp(-Math.pow((normX - 0.555) / 0.038, 2)) * 0.95;
+            const p5 = Math.exp(-Math.pow((normX - 0.72) / 0.04, 2)) * 0.45;
+            const p6 = Math.exp(-Math.pow((normX - 0.88) / 0.05, 2)) * 0.55;
+            return Math.min(1.0, baseline + p1 + p2 + p3 + p4 + p5 + p6);
+        }
+
+        let smoothedHeights = [];
+
+        function renderVisualizer(timestamp) {
+            const time = timestamp * 0.001;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const centerY = height * 0.52;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const barSpacing = 6;
+            const barWidth = 2.6;
+            const totalBars = Math.floor(width / barSpacing);
+
+            if (smoothedHeights.length !== totalBars) {
+                smoothedHeights = new Float32Array(totalBars);
+            }
+
+            let hasLiveFFT = false;
+            if (isMusicPlaying && analyser) {
+                analyser.getByteFrequencyData(frequencyData);
+                let sum = 0;
+                for (let k = 0; k < 20; k++) sum += frequencyData[k];
+                if (sum > 10) hasLiveFFT = true;
+            }
+
+            // Audio timing & rhythmic beat detection
+            const audioSec = (audioPlayer && !audioPlayer.paused) ? audioPlayer.currentTime : 0;
+            const beatTime = audioSec * 1.4; // ~84 BPM lofi beat
+            const kick = Math.pow(Math.max(0, Math.sin(beatTime * Math.PI)), 4);
+            const snare = Math.pow(Math.max(0, Math.sin((beatTime + 0.5) * Math.PI)), 3);
+            const offbeat = Math.pow(Math.max(0, Math.sin(beatTime * 2 * Math.PI)), 2);
+
+            ctx.fillStyle = currentVisualizerColor;
+
+            for (let i = 0; i < totalBars; i++) {
+                const normX = i / totalBars;
+                const x = i * barSpacing + (barSpacing - barWidth) / 2;
+                const profile = getReferenceProfile(normX);
+
+                let targetEnergy = 0;
+
+                if (isMusicPlaying) {
+                    if (hasLiveFFT) {
+                        const distFromCenter = Math.abs(normX - 0.5) * 2;
+                        const binIdx = Math.min(
+                            frequencyData.length - 1,
+                            Math.floor(distFromCenter * (frequencyData.length * 0.65))
+                        );
+                        const rawAudio = frequencyData[binIdx] / 255;
+                        targetEnergy = (Math.pow(rawAudio, 1.3) * 1.6 + 0.15) * visualizerScale;
+                    } else {
+                        // High-energy audio reactive frequency simulation
+                        const dist = Math.abs(normX - 0.5) * 2;
+                        const bassEnergy = kick * Math.max(0, 1 - dist * 1.6) * 1.5;
+                        const midEnergy = (snare * 0.8 + 0.3 * Math.sin(audioSec * 6 + normX * 14)) * Math.max(0, 1 - Math.abs(dist - 0.5) * 2);
+                        const trebleEnergy = (offbeat * 0.7 + 0.3 * Math.abs(Math.sin(time * 24 + i * 2.3))) * Math.pow(dist, 1.2);
+                        const waveRipple = 0.25 * Math.sin(audioSec * 4.5 + normX * 10 + time * 3);
+
+                        targetEnergy = (0.28 + bassEnergy + midEnergy + trebleEnergy + waveRipple) * visualizerScale;
+                    }
+
+                    const rawHeight = profile * targetEnergy * (height * 0.48);
+
+                    // Fluid equalizer physics: instant jump on peak, smooth gravity decay
+                    if (rawHeight > smoothedHeights[i]) {
+                        smoothedHeights[i] = rawHeight;
+                    } else {
+                        smoothedHeights[i] = Math.max(rawHeight, smoothedHeights[i] * 0.86 - 0.8);
+                    }
+                } else {
+                    // Calm, tranquil idle breathing wave when paused
+                    const idleBreath = (0.32 + 0.06 * Math.sin(time * 2.2 + i * 0.14)) * (height * 0.42);
+                    const targetIdle = profile * idleBreath;
+                    smoothedHeights[i] = smoothedHeights[i] * 0.88 + targetIdle * 0.12;
+                }
+
+                const halfBarHeight = Math.max(2.4, smoothedHeights[i]);
+                const fullBarHeight = halfBarHeight * 2;
+                const y = centerY - halfBarHeight;
+
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth, fullBarHeight, 1.5);
+                ctx.fill();
+            }
+
+            // Mini equalizer animation in drawer
+            if (isMusicPlaying) {
+                const eqSpans = document.querySelectorAll('#equalizer-bars span');
+                if (eqSpans.length >= 3) {
+                    const h1 = Math.round(5 + 13 * Math.abs(Math.sin(time * 9 + 0.2)));
+                    const h2 = Math.round(7 + 11 * Math.abs(Math.cos(time * 12 + 0.5)));
+                    const h3 = Math.round(4 + 14 * Math.abs(Math.sin(time * 10 + 1.1)));
+                    eqSpans[0].style.height = `${h1}px`;
+                    eqSpans[1].style.height = `${h2}px`;
+                    eqSpans[2].style.height = `${h3}px`;
+                }
+            }
+
+            requestAnimationFrame(renderVisualizer);
+        }
+
+        /********************************************************************
+         * 5. AMBIENT PARTICLES ENGINE
+         ********************************************************************/
+        let particlesEnabled = true;
+        const particleCanvas = document.getElementById('ambient-particles');
+        const pctx = particleCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeParticleCanvas() {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeParticleCanvas);
+
+        class Particle {
+            constructor() {
+                this.seed = Math.random() * 100;
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * (particleCanvas.width || window.innerWidth);
+                this.y = -20;
+                this.size = Math.random() * 4.5 + 2.5;
+                this.speedY = Math.random() * 1.3 + 0.55;
+                this.speedX = (Math.random() - 0.5) * 0.9;
+                this.opacity = Math.random() * 0.55 + 0.2;
+                this.rot = Math.random() * 360;
+                this.rotSpeed = (Math.random() - 0.5) * 2;
+            }
+            update() {
+                this.y += this.speedY;
+                this.x += this.speedX + Math.sin(this.y * 0.018 + this.seed) * 0.5;
+                this.rot += this.rotSpeed;
+                if (this.y > particleCanvas.height + 25) {
+                    this.reset();
+                }
+            }
+            draw() {
+                pctx.save();
+                pctx.translate(this.x, this.y);
+                pctx.rotate((this.rot * Math.PI) / 180);
+                pctx.fillStyle = currentVisualizerColor;
+                pctx.globalAlpha = this.opacity;
+                pctx.beginPath();
+                pctx.ellipse(0, 0, this.size, this.size * 0.55, 0, 0, Math.PI * 2);
+                pctx.fill();
+                pctx.restore();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 60; i++) {
+                const p = new Particle();
+                p.y = Math.random() * window.innerHeight;
+                particles.push(p);
+            }
+        }
+
+        function renderParticles() {
+            if (particlesEnabled) {
+                pctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+            } else {
+                pctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            }
+            requestAnimationFrame(renderParticles);
+        }
+
+        /********************************************************************
+         * 6. HAMBURGER MENU DRAWER CONTROLS
+         ********************************************************************/
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const drawerMenu = document.getElementById('drawer-menu');
+        const drawerBackdrop = document.getElementById('drawer-backdrop');
+        const closeDrawerBtn = document.getElementById('close-drawer-btn');
+        let isDrawerOpen = false;
+
+        function openDrawer() {
+            isDrawerOpen = true;
+            document.body.classList.add('menu-open');
+            drawerBackdrop.classList.remove('hidden');
+            setTimeout(() => {
+                drawerBackdrop.classList.remove('opacity-0');
+                drawerMenu.classList.remove('translate-x-full');
+            }, 10);
+        }
+
+        function closeDrawer() {
+            isDrawerOpen = false;
+            document.body.classList.remove('menu-open');
+            drawerBackdrop.classList.add('opacity-0');
+            drawerMenu.classList.add('translate-x-full');
+            setTimeout(() => {
+                drawerBackdrop.classList.add('hidden');
+            }, 300);
+        }
+
+        hamburgerBtn.addEventListener('click', () => isDrawerOpen ? closeDrawer() : openDrawer());
+        document.getElementById('top-info-pill').addEventListener('click', openDrawer);
+        closeDrawerBtn.addEventListener('click', closeDrawer);
+        drawerBackdrop.addEventListener('click', closeDrawer);
+
+        /********************************************************************
+         * 7. EVENT LISTENERS & USER CONTROLS
+         ********************************************************************/
+        window.addEventListener('DOMContentLoaded', () => {
+            // Clock
+            updateClock();
+            setInterval(updateClock, 1000);
+            document.getElementById('clock-display').addEventListener('click', () => toggleClockMode());
+            document.getElementById('clock-toggle-switch').addEventListener('click', () => toggleClockMode());
+
+            // Canvases
+            resizeCanvas();
+            requestAnimationFrame(renderVisualizer);
+            resizeParticleCanvas();
+            initParticles();
+            requestAnimationFrame(renderParticles);
+
+            // Populate Mon Catalog Cards
+            renderEeveelutionCards();
+
+            // Default startup: Leafeon on Grass (Always sleeping by default!)
+            selectMonByIndex(currentMonIndex);
+
+            // Run dynamic auto-detection for newly added Mon folders
+            loadMonsJson();
+            autoDetectLocalServerDirs();
+            autoDetectGitHubPagesMons();
+
+            // Prepare Audio Playlist
+            renderPlaylist();
+            loadAndPlayTrack(0, false); // prepare Melancholy Lull
+
+            const restoreDefaultsBtn = document.getElementById('restore-defaults-btn');
+            if (restoreDefaultsBtn) {
+                restoreDefaultsBtn.addEventListener('click', restoreDefaultPlaylist);
+            }
+
+            // Audio Playback Controls
+            document.getElementById('main-play-btn').addEventListener('click', togglePlayPause);
+            document.getElementById('pill-play-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                togglePlayPause();
+            });
+            document.getElementById('next-track-btn').addEventListener('click', nextTrack);
+            document.getElementById('prev-track-btn').addEventListener('click', prevTrack);
+
+            document.getElementById('shuffle-btn').addEventListener('click', (e) => {
+                isShuffle = !isShuffle;
+                e.currentTarget.classList.toggle('text-emerald-400', isShuffle);
+            });
+
+            document.getElementById('repeat-btn').addEventListener('click', (e) => {
+                if (repeatMode === "all") {
+                    repeatMode = "one";
+                    e.currentTarget.textContent = "🔂";
+                    e.currentTarget.classList.add('text-emerald-400');
+                } else if (repeatMode === "one") {
+                    repeatMode = "off";
+                    e.currentTarget.textContent = "🔁";
+                    e.currentTarget.classList.remove('text-emerald-400');
+                } else {
+                    repeatMode = "all";
+                    e.currentTarget.classList.add('text-emerald-400');
+                }
+            });
+
+            // Volume Control
+            const volSlider = document.getElementById('volume-slider');
+            const volLabel = document.getElementById('volume-val-label');
+            volSlider.addEventListener('input', (e) => {
+                masterVolume = parseFloat(e.target.value);
+                volLabel.textContent = `${Math.round(masterVolume * 100)}%`;
+                audioPlayer.volume = masterVolume;
+                if (masterGainNode && audioCtx) {
+                    masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+                }
+            });
+
+            document.getElementById('mute-toggle-btn').addEventListener('click', () => {
+                if (audioPlayer.volume > 0) {
+                    audioPlayer.volume = 0;
+                    volLabel.textContent = "0%";
+                    volSlider.value = 0;
+                } else {
+                    audioPlayer.volume = 0.8;
+                    volLabel.textContent = "80%";
+                    volSlider.value = 0.8;
+                }
+            });
+
+            // Mon Stage Click Interaction: Triggers random numbered animation + hearts ❤️💕💖🥰😍
+            document.getElementById('mon-stage').addEventListener('click', () => triggerMonReaction());
+
+
+            // Ambient Particles Toggle
+            const pToggle = document.getElementById('particles-toggle-switch');
+            const pKnob = document.getElementById('particles-switch-knob');
+            const pLabel = document.getElementById('particles-mode-label');
+            pToggle.addEventListener('click', () => {
+                particlesEnabled = !particlesEnabled;
+                pToggle.setAttribute('aria-checked', String(particlesEnabled));
+                if (particlesEnabled) {
+                    pToggle.classList.replace('bg-white/20', 'bg-emerald-500');
+                    pKnob.classList.add('translate-x-6');
+                    pLabel.textContent = "Active";
+                } else {
+                    pToggle.classList.replace('bg-emerald-500', 'bg-white/20');
+                    pKnob.classList.remove('translate-x-6');
+                    pLabel.textContent = "Disabled";
+                }
+            });
+
+            // Visualizer Scale Slider
+            const visScaleSlider = document.getElementById('vis-scale-slider');
+            const visScaleLabel = document.getElementById('vis-scale-label');
+            visScaleSlider.addEventListener('input', (e) => {
+                visualizerScale = parseFloat(e.target.value);
+                visScaleLabel.textContent = `${visualizerScale.toFixed(1)}x`;
+            });
+
+            // Custom Audio File Upload
+            document.getElementById('audio-file-input').addEventListener('change', (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
+
+                const firstNewIndex = playlist.length;
+                files.forEach(file => {
+                    const objUrl = URL.createObjectURL(file);
+                    playlist.push({
+                        title: file.name.replace(/\.[^/.]+$/, ""),
+                        src: objUrl,
+                        duration: "Uploaded"
+                    });
+                });
+
+                renderPlaylist();
+                loadAndPlayTrack(firstNewIndex, true);
+                e.target.value = '';
+            });
+
+            // Global Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    togglePlayPause();
+                } else if (e.key === 'm' || e.key === 'M') {
+                    isDrawerOpen ? closeDrawer() : openDrawer();
+                } else if (e.key === 'n' || e.key === 'N') {
+                    nextTrack();
+                } else if (e.key === 'b' || e.key === 'B') {
+                    prevTrack();
+                } else if (e.key === 't' || e.key === 'T') {
+                    toggleClockMode();
+                } else if (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S') {
+                    triggerMonReaction();
+                } else if (e.key >= '1' && e.key <= '9') {
+                    const idx = parseInt(e.key) - 1;
+                    if (idx < monCatalog.length) selectMonByIndex(idx);
+                } else if (e.key === 'Escape' && isDrawerOpen) {
+                    closeDrawer();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
