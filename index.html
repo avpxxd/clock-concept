@@ -168,7 +168,7 @@
             </button>
             <div id="top-info-pill" class="cursor-pointer truncate max-w-[150px] sm:max-w-[220px]"
                 title="Click to open menu (M)">
-                <span id="pill-track-title">Melancholy Lull</span>
+                <span id="pill-track-title">Cave</span>
             </div>
         </div>
 
@@ -274,7 +274,7 @@
                 <!-- Track Name & Wave Animation -->
                 <div class="bg-black/30 rounded-xl p-3 border border-white/5 flex items-center justify-between">
                     <div class="truncate pr-2">
-                        <div id="now-playing-title" class="text-sm font-bold truncate text-white/95">Melancholy Lull
+                        <div id="now-playing-title" class="text-sm font-bold truncate text-white/95">Cave
                         </div>
                         <div class="text-[11px] text-white/50 font-mono mt-0.5">music/ folder</div>
                     </div>
@@ -365,7 +365,7 @@
                     <div class="flex items-center space-x-2">
                         <button id="restore-defaults-btn"
                             class="text-[10px] text-emerald-400/80 hover:text-emerald-300 hover:underline transition-colors hidden"
-                            title="Restore original 10 default songs">
+                            title="Restore original 20 default songs">
                             Restore Defaults
                         </button>
                         <span id="playlist-count-badge"
@@ -1434,17 +1434,107 @@
          * 2. BULLETPROOF AUDIO ENGINE (SUPPORTS FILE:/// & HTTP/S)
          ********************************************************************/
         const DEFAULT_PLAYLIST = [
-            { title: "Melancholy Lull", filename: "Melancholy Lull.mp3", duration: "2:43" },
-            { title: "Floating Garden", filename: "Floating Garden.mp3", duration: "3:39" },
-            { title: "Hearty", filename: "Hearty.mp3", duration: "3:05" },
-            { title: "Long Day", filename: "Long Day.mp3", duration: "3:29" },
-            { title: "Moonlight Coffee", filename: "Moonlight Coffee.mp3", duration: "4:21" },
-            { title: "Nighttime Drive", filename: "Nighttime Drive.mp3", duration: "4:09" },
-            { title: "Rainy Day", filename: "Rainy Day.mp3", duration: "4:22" },
-            { title: "River In The Ice", filename: "River In The Ice.mp3", duration: "3:46" },
-            { title: "Sway", filename: "Sway.mp3", duration: "3:34" },
-            { title: "Yesterday", filename: "Yesterday.mp3", duration: "2:48" }
-        ];
+            {
+                        "title": "Cave",
+                        "filename": "Cave.mp3",
+                        "duration": "1:52"
+            },
+            {
+                        "title": "Coffee",
+                        "filename": "Coffee.mp3",
+                        "duration": "4:21"
+            },
+            {
+                        "title": "Daytime",
+                        "filename": "Daytime.mp3",
+                        "duration": "2:53"
+            },
+            {
+                        "title": "Drive",
+                        "filename": "Drive.mp3",
+                        "duration": "4:08"
+            },
+            {
+                        "title": "Garden",
+                        "filename": "Garden.mp3",
+                        "duration": "3:02"
+            },
+            {
+                        "title": "Hearty",
+                        "filename": "Hearty.mp3",
+                        "duration": "2:33"
+            },
+            {
+                        "title": "Ice",
+                        "filename": "Ice.mp3",
+                        "duration": "3:46"
+            },
+            {
+                        "title": "Joy",
+                        "filename": "Joy.mp3",
+                        "duration": "2:47"
+            },
+            {
+                        "title": "Lull",
+                        "filename": "Lull.mp3",
+                        "duration": "2:15"
+            },
+            {
+                        "title": "Moonlight",
+                        "filename": "Moonlight.mp3",
+                        "duration": "2:20"
+            },
+            {
+                        "title": "Mountain",
+                        "filename": "Mountain.mp3",
+                        "duration": "2:34"
+            },
+            {
+                        "title": "Rain",
+                        "filename": "Rain.mp3",
+                        "duration": "4:21"
+            },
+            {
+                        "title": "Side",
+                        "filename": "Side.mp3",
+                        "duration": "2:53"
+            },
+            {
+                        "title": "Sky",
+                        "filename": "Sky.mp3",
+                        "duration": "2:40"
+            },
+            {
+                        "title": "Slow",
+                        "filename": "Slow.mp3",
+                        "duration": "3:26"
+            },
+            {
+                        "title": "Sunlight",
+                        "filename": "Sunlight.mp3",
+                        "duration": "2:33"
+            },
+            {
+                        "title": "Sway",
+                        "filename": "Sway.mp3",
+                        "duration": "3:33"
+            },
+            {
+                        "title": "Tech",
+                        "filename": "Tech.mp3",
+                        "duration": "2:04"
+            },
+            {
+                        "title": "Waves",
+                        "filename": "Waves.mp3",
+                        "duration": "2:46"
+            },
+            {
+                        "title": "Yesterday",
+                        "filename": "Yesterday.mp3",
+                        "duration": "2:48"
+            }
+];
 
         let playlist = [...DEFAULT_PLAYLIST];
 
